@@ -1,0 +1,10 @@
+# IntelliJ files
+.idea/
+*.iml
+# Build
+target/
+# OS-spezifische Dateien
+.DS_Store
+thumbs.db
+# Java logs
+*.log
