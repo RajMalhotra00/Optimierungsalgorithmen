@@ -1,0 +1,3 @@
+Algorithm,InitialBoxes,ImprovedBoxes,AvgTimeMs
+LokaleSucheStandard,1.0,1.0,0.010212
+LokaleSucheWorstCase,50.0,1.0,0.005309
