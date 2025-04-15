@@ -1,91 +1,93 @@
 package com.example;
 
-import com.example.algorithm.GeometricNachbarschaft;
 import com.example.algorithm.Greedy;
 import com.example.algorithm.GreedyStrategyAreaDesc;
-import com.example.algorithm.LokaleSuche;
+import com.example.algorithm.GreedyStrategyWidthAsc;
 import com.example.interfaces.AuswahlStrategie;
 import com.example.model.ProblemInstanz;
 import com.example.model.Rechteck;
 import com.example.util.InstanzGenerator;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
-/*
- * starte den Test mit dem Befehl mvn exec:java -Dexec.mainClass="com.example.TestHarness"
- */
 public class TestHarness {
 
+    // Ein Tupel repräsentiert: {Anzahl Instanzen, Anzahl Rechtecke, minWidth,
+    // maxWidth, minHeight, maxHeight, BoxLength}
+    private static int[][] testParameters = {
+            // Kleine Instanzen für schnelle Tests:
+            { 5, 50, 10, 30, 10, 30, 100 },
+            // Mittlere Instanzen:
+            { 5, 200, 10, 50, 10, 50, 120 },
+            // Große Instanzen für umfangreichere Durchläufe:
+            { 3, 1000, 20, 80, 20, 80, 100 }
+    };
+
     public static void main(String[] args) {
-        // Hier verwendest du anspruchsvollere Parameter:
-        int numTests = 50; // Mehr Durchläufe für statistische Aussagekraft
-        int boxLength = 120; // Kleinere Box -> weniger Platz
-        int anzahlRechtecke = 1000; // Mehr Rechtecke, um den Suchraum zu vergrößern
-        int minWidth = 10, maxWidth = 50; // Rechtecke sind größer
-        int minHeight = 10, maxHeight = 50;
+        // Teste nur Greedy-Algorithmen.
+        List<String> algorithmNames = new ArrayList<>();
+        algorithmNames.add("Greedy (Fläche absteigend)");
+        algorithmNames.add("Greedy (Breite aufsteigend)");
 
-        InstanzGenerator generator = new InstanzGenerator();
+        try (PrintWriter pw = new PrintWriter(new FileWriter("testResults.csv"))) {
+            pw.println(
+                    "AnzahlInstanzen,AnzahlRechtecke,minWidth,maxWidth,minHeight,maxHeight,BoxLength,Algorithmus,AvgBoxes,AvgTimeMs");
 
-        // --- Test für Standardinitialisierung (first-fit Platzierung) mit
-        // anspruchsvolleren Parametern ---
-        double totalInitialLS = 0.0, totalImprovedLS = 0.0;
-        long totalTimeLS = 0;
-        for (int i = 0; i < numTests; i++) {
-            ProblemInstanz instanceLS = generator.generateInstance(boxLength, anzahlRechtecke, minWidth, maxWidth,
-                    minHeight, maxHeight);
-            // Verwende die Standardinitialisierung (first-fit), die hier bewusst suboptimal
-            // sein kann
-            instanceLS.generateInitialSolution();
-            double initialQuality = instanceLS.evaluate(instanceLS);
-            totalInitialLS += initialQuality;
+            for (int[] params : testParameters) {
+                int numInstances = params[0];
+                int numRectangles = params[1];
+                int minWidth = params[2];
+                int maxWidth = params[3];
+                int minHeight = params[4];
+                int maxHeight = params[5];
+                int boxLength = params[6];
 
-            long startTime = System.nanoTime();
-            LokaleSuche<ProblemInstanz> ls = new LokaleSuche<>(instanceLS, new GeometricNachbarschaft());
-            ProblemInstanz improvedLS = ls.run(instanceLS);
-            long duration = System.nanoTime() - startTime;
-            totalTimeLS += duration;
+                for (String algoName : algorithmNames) {
+                    double totalBoxes = 0;
+                    double totalTimeMs = 0;
 
-            double improvedQuality = improvedLS.evaluate(improvedLS);
-            totalImprovedLS += improvedQuality;
+                    for (int i = 0; i < numInstances; i++) {
+                        InstanzGenerator generator = new InstanzGenerator();
+                        ProblemInstanz instance = generator.generateInstance(boxLength, numRectangles, minWidth,
+                                maxWidth, minHeight, maxHeight);
+
+                        // Erzeuge die Standardlösung über die initiale Platzierung.
+                        instance.generateInitialSolution();
+
+                        long startTime = System.nanoTime();
+                        ProblemInstanz improved;
+                        if (algoName.equals("Greedy (Fläche absteigend)")) {
+                            AuswahlStrategie<Rechteck> strategy = new GreedyStrategyAreaDesc();
+                            improved = new Greedy(instance, strategy).run(instance);
+                        } else if (algoName.equals("Greedy (Breite aufsteigend)")) {
+                            AuswahlStrategie<Rechteck> strategy = new GreedyStrategyWidthAsc();
+                            improved = new Greedy(instance, strategy).run(instance);
+                        } else {
+                            improved = instance;
+                        }
+                        long duration = System.nanoTime() - startTime;
+                        double timeMs = duration / 1_000_000.0;
+
+                        totalBoxes += improved.getBoxes().size();
+                        totalTimeMs += timeMs;
+                    }
+                    double avgBoxes = totalBoxes / numInstances;
+                    double avgTime = totalTimeMs / numInstances;
+                    System.out.println("Parameter: " + numRectangles + " Rechtecke, BoxLänge " + boxLength +
+                            ", Algorithmus: " + algoName +
+                            " -> Durchschnittliche Boxen: " + avgBoxes +
+                            ", Durchschnittliche Zeit: " + avgTime + " ms");
+
+                    pw.println(numInstances + "," + numRectangles + "," + minWidth + "," + maxWidth + "," +
+                            minHeight + "," + maxHeight + "," + boxLength + "," + algoName + "," +
+                            avgBoxes + "," + avgTime);
+                }
+            }
+        } catch (IOException ex) {
+            System.err.println("Fehler beim Schreiben der Ergebnisse: " + ex.getMessage());
         }
-        System.out.println("Lokale Suche (Standardinitialisierung):");
-        System.out.println("  Durchschnittliche initiale Anzahl Boxen: " + (totalInitialLS / numTests));
-        System.out.println("  Durchschnittliche verbesserte Anzahl Boxen: " + (totalImprovedLS / numTests));
-        System.out.println("  Durchschnittliche Laufzeit (ms): " + ((totalTimeLS / numTests) / 1_000_000.0));
-
-        // --- Test für Worst-Case-Initialisierung: jedes Rechteck in eigene Box ---
-        double totalInitialLS_bad = 0.0, totalImprovedLS_bad = 0.0;
-        long totalTimeLS_bad = 0;
-        for (int i = 0; i < numTests; i++) {
-            ProblemInstanz instanceBad = generator.generateInstance(boxLength, anzahlRechtecke, minWidth, maxWidth,
-                    minHeight, maxHeight);
-            instanceBad = generateWorstCaseSolution(instanceBad); // Worst-Case erzwingen
-            double initialQuality_bad = instanceBad.evaluate(instanceBad);
-            totalInitialLS_bad += initialQuality_bad;
-
-            long startTime = System.nanoTime();
-            LokaleSuche<ProblemInstanz> lsBad = new LokaleSuche<>(instanceBad, new GeometricNachbarschaft());
-            ProblemInstanz improvedLS_bad = lsBad.run(instanceBad);
-            long duration = System.nanoTime() - startTime;
-            totalTimeLS_bad += duration;
-
-            double improvedQuality_bad = improvedLS_bad.evaluate(improvedLS_bad);
-            totalImprovedLS_bad += improvedQuality_bad;
-        }
-        System.out.println("\nLokale Suche (Worst-Case Initialisierung):");
-        System.out.println("  Durchschnittliche initiale Anzahl Boxen: " + (totalInitialLS_bad / numTests));
-        System.out.println("  Durchschnittliche verbesserte Anzahl Boxen: " + (totalImprovedLS_bad / numTests));
-        System.out.println("  Durchschnittliche Laufzeit (ms): " + ((totalTimeLS_bad / numTests) / 1_000_000.0));
-    }
-
-    // Methode zur Erzeugung einer Worst-Case-Lösung, bei der jedes Rechteck in eine
-    // eigene Box kommt.
-    private static ProblemInstanz generateWorstCaseSolution(ProblemInstanz instance) {
-        instance.getBoxes().clear();
-        for (Rechteck r : instance.getRechtecke()) {
-            // Erzeuge für jedes Rechteck eine neue Box
-            instance.getBoxes().add(new com.example.model.Box(instance.getBoxLength()));
-            // Füge das Rechteck in diese eigene Box ein.
-            instance.getBoxes().get(instance.getBoxes().size() - 1).addRechteck(r);
-        }
-        return instance;
     }
 }
