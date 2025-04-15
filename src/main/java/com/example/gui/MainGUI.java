@@ -189,6 +189,10 @@ public class MainGUI extends Application {
         }
         String selection = cbAlgorithm.getSelectionModel().getSelectedItem();
         log("Wende Algorithmus \"" + selection + "\" an...");
+
+        // Speichere den Zustand der Boxen vor dem Aufruf des Algorithmus
+        int beforeBoxes = currentInstance.getBoxes().size();
+
         ProblemInstanz improved = null;
         long startTime = System.nanoTime();
 
@@ -214,7 +218,7 @@ public class MainGUI extends Application {
         long duration = System.nanoTime() - startTime;
         if (improved != null) {
             log("Algorithmus abgeschlossen in " + (duration / 1_000_000.0) + " ms. Boxen: Vor " +
-                    currentInstance.getBoxes().size() + " – Nach " + improved.getBoxes().size());
+                    beforeBoxes + " – Nach " + improved.getBoxes().size());
             currentInstance = improved;
             drawInstance(currentInstance);
         } else {
