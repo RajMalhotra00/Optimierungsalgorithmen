@@ -1,6 +1,7 @@
 package com.example.gui;
 
 import com.example.algorithm.GeometricNachbarschaft;
+import com.example.algorithm.GeometricNachbarschaftTuned;
 import com.example.algorithm.LokaleSuche;
 import com.example.algorithm.PermutationsNachbarschaft;
 import com.example.algorithm.SimulatedAnnealingSuche;
@@ -64,7 +65,8 @@ public class MainGUI extends Application {
                 "Lokale Suche – Geometriebasiert",
                 "Lokale Suche – Regelbasiert",
                 "Lokale Suche – Überlappungen teilweise zulassen",
-                "SA-Tuned – Überlappungen (Simulated Annealing)",
+                "SA-Geo-Tuned (Geometrisch, Simulated Annealing)",
+                "SA-Overlap-Tuned (Überlappung, Simulated Annealing)",
                 "Greedy – Strategie A (Fläche absteigend)",
                 "Greedy – Strategie B (Breite aufsteigend)");
         cbAlgorithm.getSelectionModel().selectFirst();
@@ -199,12 +201,26 @@ public class MainGUI extends Application {
         ProblemInstanz improved = null;
         long startTime = System.nanoTime();
 
-        if (selection.startsWith("SA-Tuned")) { // 1️⃣ zuerst SA-Tuned
+        /*
+         * ───────────────────────────── Simulated-Annealing ───────────────────────────
+         */
+        if (selection.startsWith("SA-Geo-Tuned")) { // ► neue Variante
+            GeometricNachbarschaftTuned nb = new GeometricNachbarschaftTuned();
+            nb.setMaxNeighbors(14); // optionales Feintuning
+            nb.setRasterStep(3);
+            SimulatedAnnealingSuche<ProblemInstanz> sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
+            improved = sa.run(currentInstance);
+
+        } else if (selection.startsWith("SA-Overlap-Tuned")) { // ► bisherige Variante
             OverlapTolerantNachbarschaftTuned nb = new OverlapTolerantNachbarschaftTuned(1.0);
             SimulatedAnnealingSuche<ProblemInstanz> sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
             improved = sa.run(currentInstance);
 
-        } else if (selection.startsWith("Lokale Suche")) { // 2️⃣ dann die übrigen
+            /*
+             * ───────────────────────────── Lokale Suche ────────────────────────────────
+             */
+        } else if (selection.startsWith("Lokale Suche")) {
+
             if (selection.contains("Geometriebasiert")) {
                 improved = new LokaleSuche<>(currentInstance,
                         new GeometricNachbarschaft()).run(currentInstance);
@@ -218,10 +234,15 @@ public class MainGUI extends Application {
                         new OverlapTolerantNachbarschaft(1.0)).run(currentInstance);
             }
 
+            /*
+             * ───────────────────────────── Greedy ───────────────────────────────────────
+             */
         } else if (selection.startsWith("Greedy")) {
+
             if (selection.contains("Strategie A")) {
                 AuswahlStrategie<Rechteck> strategy = new GreedyStrategyAreaDesc();
                 improved = new Greedy(currentInstance, strategy).run(currentInstance);
+
             } else if (selection.contains("Strategie B")) {
                 AuswahlStrategie<Rechteck> strategy = new GreedyStrategyWidthAsc();
                 improved = new Greedy(currentInstance, strategy).run(currentInstance);
