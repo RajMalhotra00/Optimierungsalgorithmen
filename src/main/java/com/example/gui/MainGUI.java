@@ -15,8 +15,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
-import java.util.Collections;
-
 public class MainGUI extends Application {
 
     /* ────────── GUI-Elemente ────────── */
@@ -30,11 +28,11 @@ public class MainGUI extends Application {
     /* Aktuelle Instanz */
     private ProblemInstanz currentInstance;
 
-    /* ───────────────────────────────────────────────────────────────────── */
+    /* ─────────────────────────────────────────────────────────────── */
     @Override
     public void start(Stage primaryStage) {
 
-        /* -------- obere Eingabemaske -------- */
+        /* ---------- Eingabemaske ---------- */
         GridPane controls = new GridPane();
         controls.setHgap(10);
         controls.setVgap(10);
@@ -49,6 +47,7 @@ public class MainGUI extends Application {
 
         btnGenerateRandomSolution = new Button("Zufalls-Instanz erzeugen");
         btnRunAlgorithm = new Button("Algorithmus anwenden");
+        btnRunAlgorithm.setDisable(true); // ← zunächst deaktiviert
 
         cbAlgorithm = new ComboBox<>();
         cbAlgorithm.getItems().addAll(
@@ -116,6 +115,7 @@ public class MainGUI extends Application {
             currentInstance = gen.generateInstance(box, n, minW, maxW, minH, maxH);
             currentInstance.generateRandomFeasibleSolution(50);
 
+            btnRunAlgorithm.setDisable(false); // ← jetzt freischalten
             log("Neue Zufalls-Instanz: " + currentInstance.getBoxes().size() + " Boxen");
             drawInstance(currentInstance);
 
@@ -124,13 +124,10 @@ public class MainGUI extends Application {
         }
     }
 
-    /* ────────── Algorithmus auswählen & starten ────────── */
+    /* ────────── Algorithmus starten ────────── */
     private void runSelectedAlgorithm() {
-        if (currentInstance == null) {
-            generateRandomFeasibleSolution(); // automatisch Instanz erzeugen
-            if (currentInstance == null)
-                return;
-        }
+        if (currentInstance == null)
+            return;
 
         String sel = cbAlgorithm.getValue();
         log("Starte \"" + sel + "\" …");
@@ -139,7 +136,7 @@ public class MainGUI extends Application {
         ProblemInstanz improved = null;
         long t0 = System.nanoTime();
 
-        /* ---------- Simulated-Annealing Varianten ---------- */
+        /* ---------- Simulated-Annealing ---------- */
         if (sel.startsWith("SA-Geo-Tuned")) {
             var nb = new GeometricNachbarschaftTuned();
             nb.setMaxNeighbors(14);
@@ -151,7 +148,7 @@ public class MainGUI extends Application {
             var sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
             improved = sa.run(currentInstance);
 
-            /* ---------------- Lokale Suche --------------------- */
+            /* ---------------- Lokale Suche ---------------- */
         } else if (sel.startsWith("Lokale Suche")) {
 
             if (sel.contains("Geometriebasiert"))
@@ -161,10 +158,10 @@ public class MainGUI extends Application {
                 improved = new LokaleSuche<>(currentInstance, new PermutationsNachbarschaft()).run(currentInstance);
 
             else if (sel.contains("Überlappungen"))
-                improved = new LokaleSuche<>(currentInstance, new OverlapTolerantNachbarschaft(1.0))
-                        .run(currentInstance);
+                improved = new LokaleSuche<>(currentInstance,
+                        new OverlapTolerantNachbarschaft(1.0)).run(currentInstance);
 
-            /* ---------------- Greedy --------------------------- */
+            /* ---------------- Greedy ------------------- */
         } else if (sel.startsWith("Greedy")) {
             AuswahlStrategie<Rechteck> strat = sel.contains("Strategie A")
                     ? new GreedyStrategyAreaDesc()
@@ -182,7 +179,7 @@ public class MainGUI extends Application {
         }
     }
 
-    /* ────────── Zeichen- & Hilfroutinen ────────── */
+    /* ────────── Zeichnen & Hilfen ────────── */
     private void drawInstance(ProblemInstanz inst) {
         GraphicsContext g = canvas.getGraphicsContext2D();
         g.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
@@ -205,10 +202,13 @@ public class MainGUI extends Application {
         taLog.appendText(msg + "\n");
     }
 
-    private void showAlert(String title, String msg) {
-        Alert a = new Alert(Alert.AlertType.WARNING, msg, ButtonType.OK);
-        a.setTitle(title);
-        a.showAndWait();
+    private void showAlert(String t, String m) {
+        new Alert(Alert.AlertType.WARNING, m, ButtonType.OK) {
+            {
+                setTitle(t);
+                showAndWait();
+            }
+        };
     }
 
     public static void main(String[] args) {
