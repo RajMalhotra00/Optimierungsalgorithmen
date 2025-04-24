@@ -1,21 +1,33 @@
 package com.example.model;
 
 import com.example.interfaces.OptimierungsProblem;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
-    private int boxLength;
-    private List<Rechteck> rechtecke;
-    private List<Box> boxes;
 
+    /*
+     * -------------------------------------------------
+     * Grund-Daten
+     * -------------------------------------------------
+     */
+    private final int boxLength;
+    private final List<Rechteck> rechtecke; // unveränderliche Referenz
+    private final List<Box> boxes = new ArrayList<>();
+
+    /* Toleranz-Management */
+    private double tolerance = 1.0; // 1.0 == 100 % Überlappung erlaubt
+    private boolean toleranzEinhaltung = true;
+
+    /* ------------------------------------------------- */
     public ProblemInstanz(int boxLength, List<Rechteck> rechtecke) {
         this.boxLength = boxLength;
         this.rechtecke = rechtecke;
-        this.boxes = new ArrayList<>();
     }
 
+    /* ------------------- Getter -------------------- */
     public int getBoxLength() {
         return boxLength;
     }
@@ -28,11 +40,22 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         return boxes;
     }
 
-    /**
-     * Platzierungsalgorithmus mittels First-Fit: Geht durch alle Rechtecke und
-     * versucht, sie in bereits existierenden Boxen zu platzieren. Wenn nicht
-     * möglich,
-     * wird eine neue Box angelegt.
+    public double getTolerance() {
+        return tolerance;
+    }
+
+    public void setTolerance(double t) {
+        tolerance = t;
+    }
+
+    public boolean isToleranzEinhaltung() {
+        return toleranzEinhaltung;
+    }
+
+    /*
+     * =================================================
+     * 1) Klassische First-Fit-Platzierung (0 % Überl.)
+     * =================================================
      */
     public void platzieren() {
         boxes.clear();
@@ -45,100 +68,195 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
                 }
             }
             if (!placed) {
-                Box newBox = new Box(boxLength);
-                newBox.addRechteck(r);
-                boxes.add(newBox);
+                Box neu = new Box(boxLength);
+                neu.addRechteck(r);
+                boxes.add(neu);
             }
         }
     }
 
-    @Override
-    public double evaluate(ProblemInstanz solution) {
-        return solution.getBoxes().size();
+    /*
+     * =================================================
+     * 2) Platzierung MIT zulässiger Überlappung
+     * (wird von tuned Neighborhood & SA genutzt)
+     * =================================================
+     */
+    public void platzierenMitToleranz(double tol) {
+        boxes.clear();
+
+        for (Rechteck r : rechtecke) {
+            boolean placed = false;
+
+            // versuche r in bestehende Boxen einzupacken
+            for (Box b : boxes) {
+                if (canPlaceWithTolerance(b, r, r.getX(), r.getY(), tol)) {
+                    b.getRechtecke().add(r);
+                    placed = true;
+                    break;
+                }
+            }
+
+            // wenn es nirgendwo passt: neue Box
+            if (!placed) {
+                Box neu = new Box(boxLength);
+                neu.getRechtecke().add(r);
+                boxes.add(neu);
+            }
+        }
+
+        /*
+         * nachpacken ist nicht perfekt, reicht aber,
+         * damit jede Lösung eine sinnvolle Box-Liste hat
+         */
     }
 
+    /** Hilfsroutine: Fügt <rect> in <box> ein, wenn Überlappung ≤ tol */
+    private boolean tryInsertWithTolerance(Box box, Rechteck rect, double tol) {
+
+        /* brute-force einige Zufallspositionen -- genügt hier */
+        Random rnd = new Random();
+        for (int attempt = 0; attempt < 15; attempt++) {
+            int x = rnd.nextInt(boxLength - rect.getWidth() + 1);
+            int y = rnd.nextInt(boxLength - rect.getHeight() + 1);
+
+            if (canPlaceWithTolerance(box, rect, x, y, tol)) {
+                rect.setPosition(x, y);
+                box.getRechtecke().add(rect);
+                return true;
+            }
+        }
+
+        /* keine zulässige Position gefunden ⇒ Flag setzen */
+        toleranzEinhaltung = false;
+        return false;
+    }
+
+    /*
+     * =================================================
+     * Bewertung (Box-Anzahl + harte Strafen)
+     * =================================================
+     */
+    @Override
+    public double evaluate(ProblemInstanz s) {
+
+        double penalty = 0.0;
+
+        for (Box b : s.getBoxes()) {
+            List<Rechteck> r = b.getRechtecke();
+            for (int i = 0; i < r.size(); i++) {
+                for (int j = i + 1; j < r.size(); j++) {
+
+                    double ratio = calculateOverlapRatio(r.get(i), r.get(j));
+                    if (ratio > s.tolerance) {
+                        penalty += ratio * 1_000.0; // harte Strafe
+                    }
+                }
+            }
+        }
+        return s.getBoxes().size() + penalty;
+    }
+
+    /* ================================================= */
     @Override
     public ProblemInstanz generateInitialSolution() {
         platzieren();
         return this;
     }
 
-    /**
-     * Erzeugt eine zufällige, aber gültige Lösung:
-     * Für jedes Rechteck wird versucht, in einer existierenden Box eine zufällige
-     * Position
-     * zu finden, an der es kollisionsfrei platziert werden kann. Falls nicht, wird
-     * eine neue Box angelegt.
-     *
-     * @param maxAttemptsPerRect maximale Anzahl Versuche pro Rechteck in einer Box
-     */
-    public void generateRandomFeasibleSolution(int maxAttemptsPerRect) {
-        boxes.clear();
-        Random rand = new Random();
-        // Wir fügen Rechtecke nicht alle in eine einzige Box ein, sondern versuchen,
-        // sie in existierenden Boxen einzupacken.
-        for (Rechteck rect : rechtecke) {
-            boolean placed = false;
-            // Versuche, rect in eine der existierenden Boxen zu platzieren
-            for (Box box : boxes) {
-                boolean success = false;
-                for (int attempt = 0; attempt < maxAttemptsPerRect; attempt++) {
-                    int x = rand.nextInt(boxLength - rect.getWidth() + 1);
-                    int y = rand.nextInt(boxLength - rect.getHeight() + 1);
-                    if (canPlaceRectInBox(box, rect, x, y)) {
-                        rect.setPosition(x, y);
-                        box.getRechtecke().add(rect);
-                        success = true;
-                        break;
-                    }
-                }
-                if (success) {
-                    placed = true;
-                    break;
-                }
-            }
-            // Falls rect in keiner existierenden Box platziert werden konnte:
-            if (!placed) {
-                Box newBox = new Box(boxLength);
-                boolean success = false;
-                for (int attempt = 0; attempt < maxAttemptsPerRect; attempt++) {
-                    int x = rand.nextInt(boxLength - rect.getWidth() + 1);
-                    int y = rand.nextInt(boxLength - rect.getHeight() + 1);
-                    if (canPlaceRectInBox(newBox, rect, x, y)) {
-                        rect.setPosition(x, y);
-                        newBox.getRechtecke().add(rect);
-                        success = true;
-                        break;
-                    }
-                }
-                // Falls auch hier keiner gefunden wird, setze es stur bei (0,0)
-                if (!success) {
-                    rect.setPosition(0, 0);
-                    newBox.getRechtecke().add(rect);
-                }
-                boxes.add(newBox);
-            }
-        }
-    }
-
-    /**
-     * Prüft, ob rect an der Position (x,y) in der gegebenen Box platziert werden
-     * kann, ohne mit
-     * einem bereits platzierten Rechteck zu überlappen.
-     */
-    private boolean canPlaceRectInBox(Box box, Rechteck rect, int x, int y) {
+    /* ======= diverse Hilfsmethoden (unverändert) ======= */
+    private boolean canPlaceWithTolerance(Box box, Rechteck rect, int x, int y, double tol) {
         for (Rechteck placed : box.getRechtecke()) {
-            if (overlap(x, y, rect.getWidth(), rect.getHeight(),
-                    placed.getX(), placed.getY(), placed.getWidth(), placed.getHeight())) {
+            if (computeOverlapRatio(x, y, rect, placed) > tol)
                 return false;
-            }
         }
         return true;
     }
 
-    private boolean overlap(int x1, int y1, int w1, int h1,
-            int x2, int y2, int w2, int h2) {
-        return x1 < x2 + w2 && x2 < x1 + w1 &&
-                y1 < y2 + h2 && y2 < y1 + h1;
+    private double calculateOverlapRatio(Rechteck a, Rechteck b) {
+        int xOv = Math.max(0,
+                Math.min(a.getX() + a.getWidth(), b.getX() + b.getWidth()) - Math.max(a.getX(), b.getX()));
+        int yOv = Math.max(0,
+                Math.min(a.getY() + a.getHeight(), b.getY() + b.getHeight()) - Math.max(a.getY(), b.getY()));
+        int ovArea = xOv * yOv;
+        if (ovArea == 0)
+            return 0.0;
+
+        int maxArea = Math.max(a.getWidth() * a.getHeight(), b.getWidth() * b.getHeight());
+        return (double) ovArea / maxArea;
     }
+
+    private double computeOverlapRatio(int x, int y, Rechteck r1, Rechteck r2) {
+        int xOv = Math.max(0,
+                Math.min(x + r1.getWidth(), r2.getX() + r2.getWidth()) - Math.max(x, r2.getX()));
+        int yOv = Math.max(0,
+                Math.min(y + r1.getHeight(), r2.getY() + r2.getHeight()) - Math.max(y, r2.getY()));
+        int ovArea = xOv * yOv;
+        if (ovArea == 0)
+            return 0.0;
+
+        int maxArea = Math.max(r1.getWidth() * r1.getHeight(), r2.getWidth() * r2.getHeight());
+        return (double) ovArea / maxArea;
+    }
+
+    /* ========== Zufalls-Startlösung helper ========== */
+    public void generateRandomFeasibleSolution(int maxAttemptsPerRect) {
+        boxes.clear();
+        Random rand = new Random();
+
+        for (Rechteck rect : rechtecke) {
+            boolean placed = false;
+
+            for (Box box : boxes) {
+                for (int a = 0; a < maxAttemptsPerRect && !placed; a++) {
+                    int x = rand.nextInt(boxLength - rect.getWidth() + 1);
+                    int y = rand.nextInt(boxLength - rect.getHeight() + 1);
+                    if (canPlaceWithTolerance(box, rect, x, y, 0.0)) { // 0 % Überlappung
+                        rect.setPosition(x, y);
+                        box.getRechtecke().add(rect);
+                        placed = true;
+                    }
+                }
+                if (placed)
+                    break;
+            }
+
+            if (!placed) { // neue Box öffnen
+                Box neu = new Box(boxLength);
+                rect.setPosition(0, 0);
+                neu.getRechtecke().add(rect);
+                boxes.add(neu);
+            }
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof ProblemInstanz other))
+            return false;
+
+        List<Rechteck> a = this.rechtecke;
+        List<Rechteck> b = other.rechtecke;
+        if (a.size() != b.size())
+            return false;
+
+        for (int i = 0; i < a.size(); i++) {
+            Rechteck r1 = a.get(i), r2 = b.get(i);
+            if (r1.getX() != r2.getX() || r1.getY() != r2.getY())
+                return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int h = 17;
+        for (Rechteck r : rechtecke) {
+            h = 31 * h + r.getX();
+            h = 31 * h + r.getY();
+        }
+        return h;
+    }
+
 }

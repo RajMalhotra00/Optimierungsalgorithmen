@@ -39,4 +39,21 @@ public class Rechteck {
     public int getY() {
         return y;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Rechteck))
+            return false;
+        Rechteck r = (Rechteck) o;
+        return width == r.width && height == r.height &&
+                x == r.x && y == r.y;
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(width, height, x, y);
+    }
+
 }
