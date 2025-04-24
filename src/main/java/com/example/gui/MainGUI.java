@@ -1,15 +1,6 @@
 package com.example.gui;
 
-import com.example.algorithm.GeometricNachbarschaft;
-import com.example.algorithm.GeometricNachbarschaftTuned;
-import com.example.algorithm.LokaleSuche;
-import com.example.algorithm.PermutationsNachbarschaft;
-import com.example.algorithm.SimulatedAnnealingSuche;
-import com.example.algorithm.OverlapTolerantNachbarschaft;
-import com.example.algorithm.OverlapTolerantNachbarschaftTuned;
-import com.example.algorithm.Greedy;
-import com.example.algorithm.GreedyStrategyAreaDesc;
-import com.example.algorithm.GreedyStrategyWidthAsc;
+import com.example.algorithm.*;
 import com.example.interfaces.AuswahlStrategie;
 import com.example.model.Box;
 import com.example.model.ProblemInstanz;
@@ -28,21 +19,22 @@ import java.util.Collections;
 
 public class MainGUI extends Application {
 
-    // Eingabefelder und Buttons
-    private TextField tfNumRectangles, tfMinWidth, tfMaxWidth, tfMinHeight, tfMaxHeight, tfBoxLength;
-    private Button btnGenerate, btnPoorSolution, btnGenerateRandomSolution, btnRunAlgorithm;
+    /* ────────── GUI-Elemente ────────── */
+    private TextField tfNumRectangles, tfMinWidth, tfMaxWidth,
+            tfMinHeight, tfMaxHeight, tfBoxLength;
+    private Button btnGenerateRandomSolution, btnRunAlgorithm;
     private ComboBox<String> cbAlgorithm;
     private Canvas canvas;
     private TextArea taLog;
 
-    // Aktuelle Probleminstanz
+    /* Aktuelle Instanz */
     private ProblemInstanz currentInstance;
 
+    /* ───────────────────────────────────────────────────────────────────── */
     @Override
     public void start(Stage primaryStage) {
-        BorderPane root = new BorderPane();
 
-        // Obere Steuerung: GridPane
+        /* -------- obere Eingabemaske -------- */
         GridPane controls = new GridPane();
         controls.setHgap(10);
         controls.setVgap(10);
@@ -55,9 +47,7 @@ public class MainGUI extends Application {
         tfMaxHeight = new TextField("50");
         tfBoxLength = new TextField("120");
 
-        btnGenerate = new Button("Instanz generieren");
-        btnPoorSolution = new Button("Suboptimale Lösung (Shuffle)");
-        btnGenerateRandomSolution = new Button("Zufallsfeasible Lösung generieren");
+        btnGenerateRandomSolution = new Button("Zufalls-Instanz erzeugen");
         btnRunAlgorithm = new Button("Algorithmus anwenden");
 
         cbAlgorithm = new ComboBox<>();
@@ -71,7 +61,7 @@ public class MainGUI extends Application {
                 "Greedy – Strategie B (Breite aufsteigend)");
         cbAlgorithm.getSelectionModel().selectFirst();
 
-        // Steuerelemente in das GridPane einfügen
+        /* Layout */
         controls.add(new Label("Anzahl Rechtecke:"), 0, 0);
         controls.add(tfNumRectangles, 1, 0);
         controls.add(new Label("Min. Breite:"), 0, 1);
@@ -85,214 +75,140 @@ public class MainGUI extends Application {
         controls.add(new Label("Boxlänge:"), 0, 3);
         controls.add(tfBoxLength, 1, 3);
         controls.add(new Label("Algorithmus:"), 0, 4);
-        controls.add(cbAlgorithm, 1, 4, 2, 1);
-        controls.add(btnGenerate, 0, 5);
-        controls.add(btnPoorSolution, 1, 5);
-        controls.add(btnGenerateRandomSolution, 2, 5);
-        controls.add(btnRunAlgorithm, 3, 5);
+        controls.add(cbAlgorithm, 1, 4, 3, 1);
+        controls.add(btnGenerateRandomSolution, 0, 5, 2, 1);
+        controls.add(btnRunAlgorithm, 2, 5, 2, 1);
 
-        root.setTop(controls);
-
-        // Canvas in einem ScrollPane, um großen Inhalt scrollen zu können
+        /* Canvas & Log */
         canvas = new Canvas(1200, 800);
-        ScrollPane scrollPane = new ScrollPane(canvas);
-        scrollPane.setPannable(true);
-        root.setCenter(scrollPane);
+        ScrollPane sc = new ScrollPane(canvas);
+        sc.setPannable(true);
 
-        // Log-/Statusbereich am unteren Rand
         taLog = new TextArea();
         taLog.setEditable(false);
         taLog.setPrefRowCount(5);
-        taLog.setWrapText(true);
-        VBox bottomBox = new VBox(5, new Label("Status:"), taLog);
-        bottomBox.setPadding(new Insets(10));
-        root.setBottom(bottomBox);
 
-        // Action-Handler
-        btnGenerate.setOnAction(e -> generateInstance());
-        btnPoorSolution.setOnAction(e -> generatePoorSolution());
+        BorderPane root = new BorderPane();
+        root.setTop(controls);
+        root.setCenter(sc);
+        root.setBottom(new VBox(5, new Label("Status:"), taLog));
+
+        /* Events */
         btnGenerateRandomSolution.setOnAction(e -> generateRandomFeasibleSolution());
         btnRunAlgorithm.setOnAction(e -> runSelectedAlgorithm());
 
-        Scene scene = new Scene(root, 1000, 800);
         primaryStage.setTitle("OptAlgos Rechteckpackung");
-        primaryStage.setScene(scene);
+        primaryStage.setScene(new Scene(root, 1000, 800));
         primaryStage.show();
     }
 
-    // Generiert eine Standardinstanz und zeigt diese
-    private void generateInstance() {
-        try {
-            int numRect = Integer.parseInt(tfNumRectangles.getText());
-            int minW = Integer.parseInt(tfMinWidth.getText());
-            int maxW = Integer.parseInt(tfMaxWidth.getText());
-            int minH = Integer.parseInt(tfMinHeight.getText());
-            int maxH = Integer.parseInt(tfMaxHeight.getText());
-            int boxLength = Integer.parseInt(tfBoxLength.getText());
-
-            // Debug: Werte ausgeben
-            System.out.println("Eingaben: #Rechtecke=" + numRect + ", minW=" + minW +
-                    ", maxW=" + maxW + ", minH=" + minH + ", maxH=" + maxH + ", boxLength=" + boxLength);
-
-            InstanzGenerator generator = new InstanzGenerator();
-            currentInstance = generator.generateInstance(boxLength, numRect, minW, maxW, minH, maxH);
-            currentInstance.generateInitialSolution();
-            log("Standardinstanz erzeugt. Boxen (Initial): " + currentInstance.getBoxes().size());
-            drawInstance(currentInstance);
-        } catch (NumberFormatException ex) {
-            showAlert("Ungültige Eingabe", "Bitte stellen Sie sicher, dass alle Werte numerisch sind.");
-        }
-    }
-
-    // Erzeugt eine suboptimale Lösung über einfaches Shuffle und erneutes
-    // Platzieren
-    private void generatePoorSolution() {
-        if (currentInstance == null) {
-            generateInstance();
-            return;
-        }
-        log("Suboptimale Lösung (Shuffle) wird erzeugt...");
-        Collections.shuffle(currentInstance.getRechtecke());
-        currentInstance.platzieren();
-        log("Suboptimale Lösung erzeugt. Boxen (Initial): " + currentInstance.getBoxes().size());
-        drawInstance(currentInstance);
-    }
-
-    /**
-     * Erzeugt direkt eine zufällige, aber gültige Lösung, die von Grund auf neu
-     * erstellt wird. Dabei wird eine neue Instanz erzeugt und die Methode
-     * generateRandomFeasibleSolution
-     * aufgerufen, sodass die Startlösung direkt suboptimal ist.
-     */
+    /* ────────── Instanz-Erzeugung ────────── */
     private void generateRandomFeasibleSolution() {
         try {
-            int numRect = Integer.parseInt(tfNumRectangles.getText());
+            int n = Integer.parseInt(tfNumRectangles.getText());
             int minW = Integer.parseInt(tfMinWidth.getText());
             int maxW = Integer.parseInt(tfMaxWidth.getText());
             int minH = Integer.parseInt(tfMinHeight.getText());
             int maxH = Integer.parseInt(tfMaxHeight.getText());
-            int boxLength = Integer.parseInt(tfBoxLength.getText());
+            int box = Integer.parseInt(tfBoxLength.getText());
 
-            InstanzGenerator generator = new InstanzGenerator();
-            // Erzeuge eine neue Instanz
-            currentInstance = generator.generateInstance(boxLength, numRect, minW, maxW, minH, maxH);
-            // Direkt die zufällige, aber zulässige Positionierung anwenden; z.B. mit 50
-            // max. Versuchen pro Rechteck
+            InstanzGenerator gen = new InstanzGenerator();
+            currentInstance = gen.generateInstance(box, n, minW, maxW, minH, maxH);
             currentInstance.generateRandomFeasibleSolution(50);
-            log("Zufällige, gültige Lösung erzeugt. Boxen: " + currentInstance.getBoxes().size());
+
+            log("Neue Zufalls-Instanz: " + currentInstance.getBoxes().size() + " Boxen");
             drawInstance(currentInstance);
+
         } catch (NumberFormatException ex) {
-            showAlert("Ungültige Eingabe", "Bitte stellen Sie sicher, dass alle Werte numerisch sind.");
+            showAlert("Ungültige Eingabe", "Bitte nur numerische Werte eingeben.");
         }
     }
 
-    // Wendet den in der ComboBox gewählten Algorithmus an
+    /* ────────── Algorithmus auswählen & starten ────────── */
     private void runSelectedAlgorithm() {
         if (currentInstance == null) {
-            showAlert("Keine Instanz", "Bitte zuerst eine Instanz generieren.");
-            return;
+            generateRandomFeasibleSolution(); // automatisch Instanz erzeugen
+            if (currentInstance == null)
+                return;
         }
-        String selection = cbAlgorithm.getSelectionModel().getSelectedItem();
-        log("Wende Algorithmus \"" + selection + "\" an...");
 
-        // Speichere den Zustand der Boxen vor dem Aufruf des Algorithmus
-        int beforeBoxes = currentInstance.getBoxes().size();
+        String sel = cbAlgorithm.getValue();
+        log("Starte \"" + sel + "\" …");
+        int before = currentInstance.getBoxes().size();
 
         ProblemInstanz improved = null;
-        long startTime = System.nanoTime();
+        long t0 = System.nanoTime();
 
-        /*
-         * ───────────────────────────── Simulated-Annealing ───────────────────────────
-         */
-        if (selection.startsWith("SA-Geo-Tuned")) { // ► neue Variante
-            GeometricNachbarschaftTuned nb = new GeometricNachbarschaftTuned();
-            nb.setMaxNeighbors(14); // optionales Feintuning
-            nb.setRasterStep(3);
-            SimulatedAnnealingSuche<ProblemInstanz> sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
+        /* ---------- Simulated-Annealing Varianten ---------- */
+        if (sel.startsWith("SA-Geo-Tuned")) {
+            var nb = new GeometricNachbarschaftTuned();
+            nb.setMaxNeighbors(14);
+            var sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
             improved = sa.run(currentInstance);
 
-        } else if (selection.startsWith("SA-Overlap-Tuned")) { // ► bisherige Variante
-            OverlapTolerantNachbarschaftTuned nb = new OverlapTolerantNachbarschaftTuned(1.0);
-            SimulatedAnnealingSuche<ProblemInstanz> sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
+        } else if (sel.startsWith("SA-Overlap-Tuned")) {
+            var nb = new OverlapTolerantNachbarschaftTuned(1.0);
+            var sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
             improved = sa.run(currentInstance);
 
-            /*
-             * ───────────────────────────── Lokale Suche ────────────────────────────────
-             */
-        } else if (selection.startsWith("Lokale Suche")) {
+            /* ---------------- Lokale Suche --------------------- */
+        } else if (sel.startsWith("Lokale Suche")) {
 
-            if (selection.contains("Geometriebasiert")) {
-                improved = new LokaleSuche<>(currentInstance,
-                        new GeometricNachbarschaft()).run(currentInstance);
+            if (sel.contains("Geometriebasiert"))
+                improved = new LokaleSuche<>(currentInstance, new GeometricNachbarschaft()).run(currentInstance);
 
-            } else if (selection.contains("Regelbasiert")) {
-                improved = new LokaleSuche<>(currentInstance,
-                        new PermutationsNachbarschaft()).run(currentInstance);
+            else if (sel.contains("Regelbasiert"))
+                improved = new LokaleSuche<>(currentInstance, new PermutationsNachbarschaft()).run(currentInstance);
 
-            } else if (selection.contains("Überlappungen")) {
-                improved = new LokaleSuche<>(currentInstance,
-                        new OverlapTolerantNachbarschaft(1.0)).run(currentInstance);
-            }
+            else if (sel.contains("Überlappungen"))
+                improved = new LokaleSuche<>(currentInstance, new OverlapTolerantNachbarschaft(1.0))
+                        .run(currentInstance);
 
-            /*
-             * ───────────────────────────── Greedy ───────────────────────────────────────
-             */
-        } else if (selection.startsWith("Greedy")) {
-
-            if (selection.contains("Strategie A")) {
-                AuswahlStrategie<Rechteck> strategy = new GreedyStrategyAreaDesc();
-                improved = new Greedy(currentInstance, strategy).run(currentInstance);
-
-            } else if (selection.contains("Strategie B")) {
-                AuswahlStrategie<Rechteck> strategy = new GreedyStrategyWidthAsc();
-                improved = new Greedy(currentInstance, strategy).run(currentInstance);
-            }
+            /* ---------------- Greedy --------------------------- */
+        } else if (sel.startsWith("Greedy")) {
+            AuswahlStrategie<Rechteck> strat = sel.contains("Strategie A")
+                    ? new GreedyStrategyAreaDesc()
+                    : new GreedyStrategyWidthAsc();
+            improved = new Greedy(currentInstance, strat).run(currentInstance);
         }
 
-        long duration = System.nanoTime() - startTime;
+        long ms = (System.nanoTime() - t0) / 1_000_000;
         if (improved != null) {
-            log("Algorithmus abgeschlossen in " + (duration / 1_000_000.0) + " ms. Boxen: Vor " +
-                    beforeBoxes + " – Nach " + improved.getBoxes().size());
+            log("Fertig in " + ms + " ms – Boxen: " + before + " → " + improved.getBoxes().size());
             currentInstance = improved;
             drawInstance(currentInstance);
         } else {
-            log("Kein Algorithmus ausgewählt oder Fehler in der Auswahl.");
+            log("Algorithmus nicht ausgeführt.");
         }
     }
 
-    // Zeichnet die aktuelle Instanz (Boxen und Rechtecke) auf dem Canvas
-    private void drawInstance(ProblemInstanz instance) {
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+    /* ────────── Zeichen- & Hilfroutinen ────────── */
+    private void drawInstance(ProblemInstanz inst) {
+        GraphicsContext g = canvas.getGraphicsContext2D();
+        g.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-        double offsetX = 10;
-        double offsetY = 10;
-        double spacing = 20;
+        double x = 10, y = 10, gap = 20;
+        for (Box b : inst.getBoxes()) {
+            g.strokeRect(x, y, b.getSideLength(), b.getSideLength());
+            for (Rechteck r : b.getRechtecke())
+                g.strokeRect(x + r.getX(), y + r.getY(), r.getWidth(), r.getHeight());
 
-        for (Box box : instance.getBoxes()) {
-            gc.strokeRect(offsetX, offsetY, box.getSideLength(), box.getSideLength());
-            for (Rechteck r : box.getRechtecke()) {
-                gc.strokeRect(offsetX + r.getX(), offsetY + r.getY(), r.getWidth(), r.getHeight());
-            }
-            offsetX += box.getSideLength() + spacing;
-            if (offsetX + box.getSideLength() > canvas.getWidth()) {
-                offsetX = 10;
-                offsetY += box.getSideLength() + spacing;
+            x += b.getSideLength() + gap;
+            if (x + b.getSideLength() > canvas.getWidth()) {
+                x = 10;
+                y += b.getSideLength() + gap;
             }
         }
     }
 
-    // Loggt Nachrichten ins TextArea
-    private void log(String message) {
-        taLog.appendText(message + "\n");
+    private void log(String msg) {
+        taLog.appendText(msg + "\n");
     }
 
-    // Zeigt einen Alert-Dialog an
-    private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private void showAlert(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.WARNING, msg, ButtonType.OK);
+        a.setTitle(title);
+        a.showAndWait();
     }
 
     public static void main(String[] args) {

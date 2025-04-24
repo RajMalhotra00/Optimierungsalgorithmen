@@ -267,4 +267,33 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         return h;
     }
 
+    /** packt nur die beiden vertauschten Rechtecke neu – O(1..Log) */
+    public void fastRepack(int i, int j, List<Rechteck> perm) {
+
+        // 1) die beiden Rechtecke aus ihren Boxen entfernen
+        Rechteck a = perm.get(i), b = perm.get(j);
+        removeRect(a);
+        removeRect(b);
+
+        // 2) sie in der neuen Reihenfolge wieder einsetzen
+        insertFirstFit(a);
+        insertFirstFit(b);
+    }
+
+    /* Hilfsroutinen – simple First-Fit-Heuristik */
+    private void removeRect(Rechteck r) {
+        for (Box box : boxes)
+            if (box.getRechtecke().remove(r))
+                break;
+    }
+
+    private void insertFirstFit(Rechteck r) {
+        for (Box box : boxes)
+            if (box.addRechteck(r))
+                return;
+        Box neu = new Box(boxLength);
+        neu.addRechteck(r);
+        boxes.add(neu);
+    }
+
 }
