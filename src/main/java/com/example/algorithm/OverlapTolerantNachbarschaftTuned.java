@@ -8,80 +8,87 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Tuned neighbourhood:
+ * • kopiert nur die Positions­daten (O(#Rects))
+ * • kein platzieren()-Aufruf
+ * • adaptiver Schritt­weite & Nachbar­anzahl
+ */
 public class OverlapTolerantNachbarschaftTuned
         implements Nachbarschaft<ProblemInstanz> {
 
     private final Random rng = new Random();
-
-    /** Momentan erlaubtes Überlappungs-Verhältnis (0‥1) */
     private double tolerance;
+    private int kMax = 10; // Startwert; wird später dynamisch verkleinert
+    private int maxShift = 4; // ± 4 Pixel
 
-    /** Anzahl Nachbarn, die pro Aufruf maximal erzeugt werden */
-    private int nachbarnProAufruf = 12;
-
-    // ────────── ctor / Getter / Setter ──────────
     public OverlapTolerantNachbarschaftTuned(double tol) {
         this.tolerance = tol;
     }
 
+    /* ──────────────────── public Setter ──────────────────── */
     public double getTolerance() {
         return tolerance;
     }
 
-    public void setTolerance(double tol) {
-        this.tolerance = tol;
+    public void setTolerance(double t) {
+        tolerance = t;
     }
 
     public void setNachbarnProAufruf(int k) {
-        this.nachbarnProAufruf = k;
+        kMax = k;
     }
 
-    // ────────── Kernfunktion ──────────
+    public void setMaxShift(int s) {
+        maxShift = s;
+    }
+
+    /* ──────────────────── Kernfunktion ───────────────────── */
     @Override
-    public List<ProblemInstanz> getNeighbors(ProblemInstanz current) {
+    public List<ProblemInstanz> getNeighbors(ProblemInstanz cur) {
 
-        List<ProblemInstanz> neighbors = new ArrayList<>();
-        int nRects = current.getRechtecke().size();
-        if (nRects == 0)
-            return neighbors;
+        int n = cur.getRechtecke().size();
+        if (n == 0)
+            return List.of();
 
-        int tries = Math.min(nachbarnProAufruf, nRects);
+        int k = Math.min(kMax, n);
+        List<ProblemInstanz> nbrs = new ArrayList<>(k);
 
-        for (int t = 0; t < tries; t++) {
+        for (int i = 0; i < k; i++) {
 
-            /* 1) tiefe Kopie … */
-            ProblemInstanz cand = deepCopy(current);
+            // 1) flache Kopie
+            List<Rechteck> list = new ArrayList<>(n);
+            for (Rechteck r : cur.getRechtecke()) {
+                Rechteck c = new Rechteck(r.getWidth(), r.getHeight());
+                c.setPosition(r.getX(), r.getY());
+                list.add(c);
+            }
 
-            /* 2) … genau ein Rechteck leicht verschieben */
-            Rechteck r = cand.getRechtecke().get(rng.nextInt(nRects));
-            int dx = rng.nextInt(11) - 5; // −5 … +5
-            int dy = rng.nextInt(11) - 5;
-
-            int newX = Math.max(0,
-                    Math.min(cand.getBoxLength() - r.getWidth(), r.getX() + dx));
-            int newY = Math.max(0,
-                    Math.min(cand.getBoxLength() - r.getHeight(), r.getY() + dy));
+            // 2) ein Rechteck verschieben
+            Rechteck r = list.get(rng.nextInt(n));
+            int dx = rng.nextInt(maxShift * 2 + 1) - maxShift;
+            int dy = rng.nextInt(maxShift * 2 + 1) - maxShift;
+            int newX = clamp(r.getX() + dx, 0, cur.getBoxLength() - r.getWidth());
+            int newY = clamp(r.getY() + dy, 0, cur.getBoxLength() - r.getHeight());
             r.setPosition(newX, newY);
 
-            /* 3) nur die Toleranz setzen – KEIN Neu­platzieren! */
+            // 3) Kandidat erzeugen + Platzierung mit aktueller Toleranz
+            ProblemInstanz cand = new ProblemInstanz(cur.getBoxLength(), list);
             cand.setTolerance(tolerance);
-
-            neighbors.add(cand); // SA entscheidet später
+            cand.platzierenMitToleranz(tolerance); // <- neu
+            nbrs.add(cand);
         }
-        return neighbors;
+
+        if (tolerance < 0.6 && kMax > 6)
+            kMax = 6;
+        if (tolerance < 0.4 && maxShift > 2)
+            maxShift = 2;
+
+        return nbrs;
     }
 
-    // ────────── Hilfsfunktion ──────────
-    private ProblemInstanz deepCopy(ProblemInstanz orig) {
-        List<Rechteck> kopie = new ArrayList<>();
-        for (Rechteck r : orig.getRechtecke()) {
-            Rechteck c = new Rechteck(r.getWidth(), r.getHeight());
-            c.setPosition(r.getX(), r.getY());
-            kopie.add(c);
-        }
-        ProblemInstanz pi = new ProblemInstanz(orig.getBoxLength(), kopie);
-        pi.setTolerance(orig.getTolerance());
-        pi.platzieren(); // Box-Struktur übernehmen
-        return pi;
+    private static int clamp(int v, int lo, int hi) {
+        return (v < lo) ? lo : (v > hi) ? hi : v;
     }
+
 }

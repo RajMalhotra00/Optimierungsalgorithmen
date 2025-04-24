@@ -142,17 +142,25 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         double penalty = 0.0;
 
         for (Box b : s.getBoxes()) {
-            List<Rechteck> r = b.getRechtecke();
-            for (int i = 0; i < r.size(); i++) {
-                for (int j = i + 1; j < r.size(); j++) {
 
-                    double ratio = calculateOverlapRatio(r.get(i), r.get(j));
-                    if (ratio > s.tolerance) {
-                        penalty += ratio * 1_000.0; // harte Strafe
+            if (b instanceof BoxPenaltyCached cached) {
+                penalty += cached.penalty(s.getTolerance());
+            } else {
+                List<Rechteck> r = b.getRechtecke();
+                for (int i = 0; i < r.size(); i++) {
+                    for (int j = i + 1; j < r.size(); j++) {
+                        double ratio = calculateOverlapRatio(r.get(i), r.get(j));
+                        if (ratio > s.getTolerance()) {
+                            penalty += ratio * 1_000.0;
+                        }
                     }
                 }
             }
+
+            if (penalty > 10_000.0)
+                break;
         }
+
         return s.getBoxes().size() + penalty;
     }
 

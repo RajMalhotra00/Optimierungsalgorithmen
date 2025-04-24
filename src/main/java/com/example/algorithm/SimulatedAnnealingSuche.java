@@ -40,17 +40,14 @@ public class SimulatedAnnealingSuche<S> implements Algorithmus<S> {
 
         while (T > 0.5) {
 
-            /*----------- Nachbarn generieren --------------------*/
             List<S> neighbors = neighborhood.getNeighbors(current);
             if (neighbors.isEmpty())
-                break; // Sackgasse → Abbruch
+                break;
 
-            /*----------- zufälligen Kandidaten wählen -----------*/
             S cand = neighbors.get(rng.nextInt(neighbors.size()));
 
-            // Aktuelle Toleranz (nur wenn beide Klassen es können)
-            if (cand instanceof ProblemInstanz candPI &&
-                    neighborhood instanceof OverlapTolerantNachbarschaftTuned nb) {
+            if (cand instanceof ProblemInstanz candPI
+                    && neighborhood instanceof OverlapTolerantNachbarschaftTuned nb) {
                 candPI.setTolerance(nb.getTolerance());
             }
 
@@ -70,14 +67,25 @@ public class SimulatedAnnealingSuche<S> implements Algorithmus<S> {
                 }
             }
 
-            /*----------- Temperatur & Toleranz anpassen ----------*/
             T *= coolingRate;
 
             if (neighborhood instanceof OverlapTolerantNachbarschaftTuned nb) {
                 double newTol = Math.max(0.0, nb.getTolerance() - 0.05);
                 nb.setTolerance(newTol);
+
+                if (newTol < 0.6)
+                    nb.setNachbarnProAufruf(6);
+                if (newTol < 0.4)
+                    nb.setMaxShift(2);
             }
         }
+
+        if (best instanceof ProblemInstanz pi) {
+            pi.setTolerance(0.0);
+            pi.platzieren();
+        }
+
         return best;
     }
+
 }
