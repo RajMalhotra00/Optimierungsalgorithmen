@@ -8,26 +8,19 @@ import java.util.Random;
 
 public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
 
-    /*
-     * -------------------------------------------------
-     * Grund-Daten
-     * -------------------------------------------------
-     */
     private final int boxLength;
-    private final List<Rechteck> rechtecke; // unveränderliche Referenz
+    private final List<Rechteck> rechtecke;
     private final List<Box> boxes = new ArrayList<>();
 
-    /* Toleranz-Management */
+    // Toleranz-Management
     private double tolerance = 1.0; // 1.0 == 100 % Überlappung erlaubt
     private boolean toleranzEinhaltung = true;
 
-    /* ------------------------------------------------- */
     public ProblemInstanz(int boxLength, List<Rechteck> rechtecke) {
         this.boxLength = boxLength;
         this.rechtecke = rechtecke;
     }
 
-    /* ------------------- Getter -------------------- */
     public int getBoxLength() {
         return boxLength;
     }
@@ -53,9 +46,7 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
     }
 
     /*
-     * =================================================
-     * 1) Klassische First-Fit-Platzierung (0 % Überl.)
-     * =================================================
+     * Klassische First-Fit-Platzierung (0 % Überl.)
      */
     public void platzieren() {
         boxes.clear();
@@ -76,10 +67,8 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
     }
 
     /*
-     * =================================================
-     * 2) Platzierung MIT zulässiger Überlappung
+     * Platzierung MIT zulässiger Überlappung
      * (wird von tuned Neighborhood & SA genutzt)
-     * =================================================
      */
     public void platzierenMitToleranz(double tol) {
         boxes.clear();
@@ -96,7 +85,7 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
                 }
             }
 
-            // wenn es nirgendwo passt: neue Box
+            // wenn es nirgendwo passt --> neue Box
             if (!placed) {
                 Box neu = new Box(boxLength);
                 neu.getRechtecke().add(r);
@@ -105,15 +94,14 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         }
 
         /*
-         * nachpacken ist nicht perfekt, reicht aber,
+         * nachpacken zwar nicht perfekt, reicht aber,
          * damit jede Lösung eine sinnvolle Box-Liste hat
          */
     }
 
-    /** Hilfsroutine: Fügt <rect> in <box> ein, wenn Überlappung ≤ tol */
     private boolean tryInsertWithTolerance(Box box, Rechteck rect, double tol) {
 
-        /* brute-force einige Zufallspositionen -- genügt hier */
+        // brute-force einige Zufallspositionen
         Random rnd = new Random();
         for (int attempt = 0; attempt < 15; attempt++) {
             int x = rnd.nextInt(boxLength - rect.getWidth() + 1);
@@ -126,15 +114,13 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
             }
         }
 
-        /* keine zulässige Position gefunden ⇒ Flag setzen */
+        // keine zulässige Position gefunden
         toleranzEinhaltung = false;
         return false;
     }
 
     /*
-     * =================================================
-     * Bewertung (Box-Anzahl + harte Strafen)
-     * =================================================
+     * Bewertung: Box-Anzahl + harte Strafen
      */
     @Override
     public double evaluate(ProblemInstanz s) {
@@ -164,14 +150,12 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         return s.getBoxes().size() + penalty;
     }
 
-    /* ================================================= */
     @Override
     public ProblemInstanz generateInitialSolution() {
         platzieren();
         return this;
     }
 
-    /* ======= diverse Hilfsmethoden (unverändert) ======= */
     private boolean canPlaceWithTolerance(Box box, Rechteck rect, int x, int y, double tol) {
         for (Rechteck placed : box.getRechtecke()) {
             if (computeOverlapRatio(x, y, rect, placed) > tol)
@@ -206,7 +190,6 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         return (double) ovArea / maxArea;
     }
 
-    /* ========== Zufalls-Startlösung helper ========== */
     public void generateRandomFeasibleSolution(int maxAttemptsPerRect) {
         boxes.clear();
         Random rand = new Random();
@@ -267,20 +250,19 @@ public class ProblemInstanz implements OptimierungsProblem<ProblemInstanz> {
         return h;
     }
 
-    /** packt nur die beiden vertauschten Rechtecke neu – O(1..Log) */
+    // packt nur die beiden vertauschten Rechtecke neu
     public void fastRepack(int i, int j, List<Rechteck> perm) {
 
-        // 1) die beiden Rechtecke aus ihren Boxen entfernen
+        // beide Rechtecke aus ihren Boxen entfernen
         Rechteck a = perm.get(i), b = perm.get(j);
         removeRect(a);
         removeRect(b);
 
-        // 2) sie in der neuen Reihenfolge wieder einsetzen
+        // setze in neuer Reihenfolge wieder ein
         insertFirstFit(a);
         insertFirstFit(b);
     }
 
-    /* Hilfsroutinen – simple First-Fit-Heuristik */
     private void removeRect(Rechteck r) {
         for (Box box : boxes)
             if (box.getRechtecke().remove(r))

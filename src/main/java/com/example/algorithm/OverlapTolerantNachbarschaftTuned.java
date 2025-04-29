@@ -10,23 +10,22 @@ import java.util.Random;
 
 /**
  * Tuned neighbourhood:
- * • kopiert nur die Positions­daten (O(#Rects))
- * • kein platzieren()-Aufruf
- * • adaptiver Schritt­weite & Nachbar­anzahl
+ * kopiere nur die Positions­daten (O(#Rects))
+ * kein platzieren()-Aufruf
+ * adaptiver Schritt­weite & Nachbar­anzahl
  */
 public class OverlapTolerantNachbarschaftTuned
         implements Nachbarschaft<ProblemInstanz> {
 
     private final Random rng = new Random();
     private double tolerance;
-    private int kMax = 10; // Startwert; wird später dynamisch verkleinert
-    private int maxShift = 4; // ± 4 Pixel
+    private int kMax = 10;
+    private int maxShift = 4;
 
     public OverlapTolerantNachbarschaftTuned(double tol) {
         this.tolerance = tol;
     }
 
-    /* ──────────────────── public Setter ──────────────────── */
     public double getTolerance() {
         return tolerance;
     }
@@ -43,7 +42,6 @@ public class OverlapTolerantNachbarschaftTuned
         maxShift = s;
     }
 
-    /* ──────────────────── Kernfunktion ───────────────────── */
     @Override
     public List<ProblemInstanz> getNeighbors(ProblemInstanz cur) {
 
@@ -56,7 +54,7 @@ public class OverlapTolerantNachbarschaftTuned
 
         for (int i = 0; i < k; i++) {
 
-            // 1) flache Kopie
+            // flache Kopie
             List<Rechteck> list = new ArrayList<>(n);
             for (Rechteck r : cur.getRechtecke()) {
                 Rechteck c = new Rechteck(r.getWidth(), r.getHeight());
@@ -64,7 +62,7 @@ public class OverlapTolerantNachbarschaftTuned
                 list.add(c);
             }
 
-            // 2) ein Rechteck verschieben
+            // ein Rechteck verschieben
             Rechteck r = list.get(rng.nextInt(n));
             int dx = rng.nextInt(maxShift * 2 + 1) - maxShift;
             int dy = rng.nextInt(maxShift * 2 + 1) - maxShift;
@@ -72,10 +70,10 @@ public class OverlapTolerantNachbarschaftTuned
             int newY = clamp(r.getY() + dy, 0, cur.getBoxLength() - r.getHeight());
             r.setPosition(newX, newY);
 
-            // 3) Kandidat erzeugen + Platzierung mit aktueller Toleranz
+            // Kandidat erzeugen + Platzierung mit aktueller Toleranz
             ProblemInstanz cand = new ProblemInstanz(cur.getBoxLength(), list);
             cand.setTolerance(tolerance);
-            cand.platzierenMitToleranz(tolerance); // <- neu
+            cand.platzierenMitToleranz(tolerance);
             nbrs.add(cand);
         }
 

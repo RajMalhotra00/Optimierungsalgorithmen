@@ -54,6 +54,8 @@ public class SimulatedAnnealingSuche<S> implements Algorithmus<S> {
             double candScore = problem.evaluate(cand);
             double delta = candScore - currScore;
 
+            // delta < 0 --> cand besser
+            // oder Metropolis Kriterium, Chance groß bei hoher T, klein bei niedriger T
             boolean accept = delta < 0 ||
                     Math.exp(-delta / T) > rng.nextDouble();
 
@@ -82,7 +84,7 @@ public class SimulatedAnnealingSuche<S> implements Algorithmus<S> {
 
         if (best instanceof ProblemInstanz pi) {
             pi.setTolerance(0.0);
-            pi.platzieren();
+            pi.platzieren(); // erzwinge überlappungsfreie PLatzierung
         }
 
         return best;

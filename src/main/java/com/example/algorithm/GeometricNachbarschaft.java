@@ -11,16 +11,14 @@ import java.util.Random;
 
 public class GeometricNachbarschaft implements Nachbarschaft<ProblemInstanz> {
 
-    /* ------------------------------------------------------- */
     private final Random rng = new Random();
 
-    /** Anzahl Nachbarn, die pro Aufruf maximal zurückgeliefert werden */
+    // Anzahl Nachbarn, die pro Aufruf maximal zurückgeliefert werden
     private int kMax = 10;
 
-    /** maximale Verschiebung eines Rechtecks in x / y-Richtung */
-    private int maxShift = 6; // ±6 Pixel (innerhalb der Box)
+    // maximale Verschiebung eines Rechtecks in x / y-Richtung
+    private int maxShift = 6;
 
-    /* ------------------------------------------------------- */
     public void setKMax(int k) {
         this.kMax = Math.max(1, k);
     }
@@ -29,20 +27,19 @@ public class GeometricNachbarschaft implements Nachbarschaft<ProblemInstanz> {
         this.maxShift = Math.max(1, s);
     }
 
-    /* ======================================================= */
     @Override
     public List<ProblemInstanz> getNeighbors(ProblemInstanz cur) {
 
         int n = cur.getRechtecke().size();
         if (n == 0)
-            return List.of(); // leere Instanz → keine Nachbarn
+            return List.of();
 
         int k = Math.min(kMax, n);
         List<ProblemInstanz> nbrs = new ArrayList<>(k);
 
         for (int i = 0; i < k; i++) {
 
-            /* ------- 1) tiefe Kopie aller Rechtecke -------------- */
+            // Kopie aller Rechtecke
             List<Rechteck> kopie = new ArrayList<>(n);
             for (Rechteck r : cur.getRechtecke()) {
                 Rechteck c = new Rechteck(r.getWidth(), r.getHeight());
@@ -50,14 +47,11 @@ public class GeometricNachbarschaft implements Nachbarschaft<ProblemInstanz> {
                 kopie.add(c);
             }
 
-            /* ------- 2) EIN Rechteck auswählen ------------------- */
             Rechteck r = kopie.get(rng.nextInt(n));
 
             /*
-             * ------------------------------------------------------
              * 50 %: nur leicht innerhalb seiner Box verschieben
              * 50 %: in eine (andere) Box umsetzen
-             * ----------------------------------------------------
              */
             if (rng.nextBoolean()) { // Variante A: shift
 
@@ -71,20 +65,18 @@ public class GeometricNachbarschaft implements Nachbarschaft<ProblemInstanz> {
                 r.setPosition(newX, newY);
 
             } else { // Variante B: umsetzen
-
-                /* Quelle und Ziel bestimmen */
                 int srcBoxIdx = boxIndexOf(cur, r);
                 int dstBoxIdx = rng.nextInt(cur.getBoxes().size()); // evtl. gleiche Box
                 while (dstBoxIdx == srcBoxIdx && cur.getBoxes().size() > 1)
                     dstBoxIdx = rng.nextInt(cur.getBoxes().size());
 
-                /* einfache Platzierung links-oben in Zielbox */
+                // einfache Platzierung links-oben in Zielbox
                 Box dst = cur.getBoxes().get(dstBoxIdx);
-                r.setPosition(0, 0); // Startkoordinate
+                r.setPosition(0, 0);
                 // Bei Kollisionen wird das spätere platzieren() umsortieren
             }
 
-            /* ------- 3) neue Instanz bilden & platzieren ---------- */
+            // neue Instanz bilden & platzieren
             ProblemInstanz cand = new ProblemInstanz(cur.getBoxLength(), kopie);
             cand.platzieren(); // sorgt für konsistente Box-Liste
             nbrs.add(cand);
@@ -92,17 +84,16 @@ public class GeometricNachbarschaft implements Nachbarschaft<ProblemInstanz> {
         return nbrs;
     }
 
-    /* ------------------------------------------------------- */
     private static int clamp(int v, int lo, int hi) {
         return (v < lo) ? lo : (v > hi) ? hi : v;
     }
 
-    /** liefert die Index-Position der Box, in der *r* momentan liegt */
+    // liefert die Index-Position der Box, in der r momentan liegt
     private static int boxIndexOf(ProblemInstanz pi, Rechteck r) {
         List<Box> boxes = pi.getBoxes();
         for (int i = 0; i < boxes.size(); i++)
             if (boxes.get(i).getRechtecke().contains(r))
                 return i;
-        return 0; // Fallback – sollte praktisch nie passieren
+        return 0; // Fallback
     }
 }

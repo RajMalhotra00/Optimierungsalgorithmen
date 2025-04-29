@@ -21,7 +21,7 @@ public class LokaleSuche<S> implements Algorithmus<S> {
         Set<S> visited = new HashSet<>();
         visited.add(bestSolution);
 
-        double tolerance = 1.0; // Start bei 100% Überlappung erlaubt
+        double tolerance = 1.0; // für Überlappungs-Nachbarschaft
 
         while (tolerance > 0.0) {
             if (neighborhood instanceof OverlapTolerantNachbarschaft) {
@@ -50,7 +50,7 @@ public class LokaleSuche<S> implements Algorithmus<S> {
             tolerance -= 0.1;
         }
 
-        // Clean-up: Toleranz auf 0 setzen und letzte Optimierung
+        // setze Toleranz auf 0 und ein letztes Mal optimieren
         if (neighborhood instanceof OverlapTolerantNachbarschaft) {
             ((OverlapTolerantNachbarschaft) neighborhood).setTolerance(0.0);
         }
@@ -73,9 +73,9 @@ public class LokaleSuche<S> implements Algorithmus<S> {
             }
         }
 
-        // ✨ Finaler Cleanup für garantiert überlappungsfreie Lösung
+        // garantiere überlappungsfreie Lösung mit reguläre First Fit am Ende
         if (bestSolution instanceof ProblemInstanz) {
-            ((ProblemInstanz) bestSolution).platzieren(); // erzwingt saubere Platzierung ohne Überlappung
+            ((ProblemInstanz) bestSolution).platzieren(); // für saubere Platzierung ohne Überlappung
         }
 
         return bestSolution;

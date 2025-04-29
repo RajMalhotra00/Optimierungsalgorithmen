@@ -1,7 +1,7 @@
 package com.example.interfaces;
 
 public interface OptimierungsProblem<S> {
-    S generateInitialSolution(); // z. B. ein zufälliges Rechteck-Packungsarrangement
+    S generateInitialSolution();
 
-    double evaluate(S solution); // Zahl der benutzten Boxen (Ziel: Minimierung)
+    double evaluate(S solution);
 }

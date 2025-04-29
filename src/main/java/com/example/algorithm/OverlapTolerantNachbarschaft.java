@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Random;
 
 public class OverlapTolerantNachbarschaft implements Nachbarschaft<ProblemInstanz> {
-    private double tolerance; // Erlaubter Überlappungsprozentsatz (z.B. 0.3 = 30%)
+    private double tolerance;
 
     public OverlapTolerantNachbarschaft(double tolerance) {
         this.tolerance = tolerance;

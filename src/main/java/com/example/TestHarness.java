@@ -1,5 +1,10 @@
 package com.example;
 
+import com.example.algorithm.GeometricNachbarschaftTuned;
+import com.example.algorithm.OverlapTolerantNachbarschaftTuned;
+import com.example.algorithm.SimulatedAnnealingSuche;
+import com.example.algorithm.LokaleSuche;
+import com.example.algorithm.PermutationsNachbarschaft;
 import com.example.algorithm.Greedy;
 import com.example.algorithm.GreedyStrategyAreaDesc;
 import com.example.algorithm.GreedyStrategyWidthAsc;
@@ -7,6 +12,7 @@ import com.example.interfaces.AuswahlStrategie;
 import com.example.model.ProblemInstanz;
 import com.example.model.Rechteck;
 import com.example.util.InstanzGenerator;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -15,20 +21,17 @@ import java.util.List;
 
 public class TestHarness {
 
-    // Ein Tupel repräsentiert: {Anzahl Instanzen, Anzahl Rechtecke, minWidth,
-    // maxWidth, minHeight, maxHeight, BoxLength}
     private static int[][] testParameters = {
-            // Kleine Instanzen für schnelle Tests:
             { 5, 50, 10, 30, 10, 30, 100 },
-            // Mittlere Instanzen:
             { 5, 200, 10, 50, 10, 50, 120 },
-            // Große Instanzen für umfangreichere Durchläufe:
             { 3, 1000, 20, 80, 20, 80, 100 }
     };
 
     public static void main(String[] args) {
-        // Teste nur Greedy-Algorithmen.
         List<String> algorithmNames = new ArrayList<>();
+        algorithmNames.add("SA-Geo-Tuned");
+        algorithmNames.add("SA-Overlap-Tuned");
+        algorithmNames.add("Regelbasiert");
         algorithmNames.add("Greedy (Fläche absteigend)");
         algorithmNames.add("Greedy (Breite aufsteigend)");
 
@@ -51,22 +54,30 @@ public class TestHarness {
 
                     for (int i = 0; i < numInstances; i++) {
                         InstanzGenerator generator = new InstanzGenerator();
-                        ProblemInstanz instance = generator.generateInstance(boxLength, numRectangles, minWidth,
-                                maxWidth, minHeight, maxHeight);
+                        ProblemInstanz instance = generator.generateInstance(
+                                boxLength, numRectangles, minWidth, maxWidth, minHeight, maxHeight);
 
-                        // Erzeuge die Standardlösung über die initiale Platzierung.
                         instance.generateInitialSolution();
 
                         long startTime = System.nanoTime();
                         ProblemInstanz improved;
-                        if (algoName.equals("Greedy (Fläche absteigend)")) {
-                            AuswahlStrategie<Rechteck> strategy = new GreedyStrategyAreaDesc();
-                            improved = new Greedy(instance, strategy).run(instance);
-                        } else if (algoName.equals("Greedy (Breite aufsteigend)")) {
-                            AuswahlStrategie<Rechteck> strategy = new GreedyStrategyWidthAsc();
-                            improved = new Greedy(instance, strategy).run(instance);
+                        if (algoName.equals("SA-Geo-Tuned")) {
+                            var nb = new GeometricNachbarschaftTuned();
+                            var sa = new SimulatedAnnealingSuche<>(instance, nb);
+                            improved = sa.run(instance);
+                        } else if (algoName.equals("SA-Overlap-Tuned")) {
+                            var nb = new OverlapTolerantNachbarschaftTuned(1.0);
+                            var sa = new SimulatedAnnealingSuche<>(instance, nb);
+                            improved = sa.run(instance);
+                        } else if (algoName.equals("Regelbasiert")) {
+                            improved = new LokaleSuche<>(
+                                    instance, new PermutationsNachbarschaft()).run(instance);
+                        } else if (algoName.equals("Greedy (Fläche absteigend)")) {
+                            AuswahlStrategie<Rechteck> strat = new GreedyStrategyAreaDesc();
+                            improved = new Greedy(instance, strat).run(instance);
                         } else {
-                            improved = instance;
+                            AuswahlStrategie<Rechteck> strat = new GreedyStrategyWidthAsc();
+                            improved = new Greedy(instance, strat).run(instance);
                         }
                         long duration = System.nanoTime() - startTime;
                         double timeMs = duration / 1_000_000.0;
@@ -74,16 +85,20 @@ public class TestHarness {
                         totalBoxes += improved.getBoxes().size();
                         totalTimeMs += timeMs;
                     }
+
                     double avgBoxes = totalBoxes / numInstances;
                     double avgTime = totalTimeMs / numInstances;
-                    System.out.println("Parameter: " + numRectangles + " Rechtecke, BoxLänge " + boxLength +
-                            ", Algorithmus: " + algoName +
-                            " -> Durchschnittliche Boxen: " + avgBoxes +
-                            ", Durchschnittliche Zeit: " + avgTime + " ms");
-
-                    pw.println(numInstances + "," + numRectangles + "," + minWidth + "," + maxWidth + "," +
-                            minHeight + "," + maxHeight + "," + boxLength + "," + algoName + "," +
-                            avgBoxes + "," + avgTime);
+                    System.out.println(
+                            numRectangles + " Rechtecke, BoxLänge " + boxLength +
+                                    ", " + algoName +
+                                    ": AvgBoxes=" + avgBoxes +
+                                    ", AvgTimeMs=" + avgTime);
+                    pw.println(
+                            numInstances + "," + numRectangles + "," +
+                                    minWidth + "," + maxWidth + "," +
+                                    minHeight + "," + maxHeight + "," +
+                                    boxLength + "," + algoName + "," +
+                                    avgBoxes + "," + avgTime);
                 }
             }
         } catch (IOException ex) {

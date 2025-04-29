@@ -10,21 +10,18 @@ import java.util.*;
 /**
  * Schnelle geometrie-Nachbarschaft
  *
- * ● arbeitet nur mit *shallow*-Kopien (keine neuen Rechteck-Objekte)
- * ● sortierte Rechteck-Pool kann einmalig von außen gesetzt werden
- * ● keine Aufrufe von platzieren(); Box-Liste wird direkt nachgeführt
+ * arbeitet nur mit shallow-Kopien (keine neuen Rechteck-Objekte)
+ * keine Aufrufe von platzieren(); Box-Liste wird direkt nachgeführt
  */
 public class GeometricNachbarschaftTuned
         implements Nachbarschaft<ProblemInstanz> {
 
-    /* ---------------------------------------------------------- */
     private final Random rng = new Random();
 
-    private int maxNeighbors = 12; // # Kandidaten pro Aufruf
+    private int maxNeighbors = 12;
     private int rasterStep = 4; // Raster für Zielposition
-    private int maxShift = 6; // ±Shift bei Variante A
+    private int maxShift = 6;
 
-    /* –– optionaler, vorsortierter Rechteck-Pool –– */
     private List<Rechteck> cachedPool = null;
 
     public void setPreSortedPool(List<Rechteck> pool) { // einmalig vorm SA setzen
@@ -43,18 +40,19 @@ public class GeometricNachbarschaftTuned
         maxShift = Math.max(1, s);
     }
 
-    /* ========================================================== */
     @Override
     public List<ProblemInstanz> getNeighbors(ProblemInstanz cur) {
 
         if (cur.getRechtecke().isEmpty())
             return List.of();
 
-        /* -------- 1) Rechteck-Auswahl -------------------------- */
         List<Rechteck> pool;
-        if (cachedPool == null) { // Fallback: on-the-fly sort
+        if (cachedPool == null) {
             pool = new ArrayList<>(cur.getRechtecke());
-            pool.sort(Comparator.<Rechteck>comparingInt(r -> boxLoad(cur, r)).reversed());
+            pool.sort(Comparator.<Rechteck>comparingInt(r -> boxLoad(cur, r)).reversed()); // sortiere absteigend nach
+                                                                                           // anzahl rechtecke in akt.
+                                                                                           // Box --> volle Boxen zuerst
+                                                                                           // berarbeiten
         } else { // einmalig vorsortiert
             pool = cachedPool;
         }
@@ -64,14 +62,13 @@ public class GeometricNachbarschaftTuned
 
         for (int idx = 0; idx < k; idx++) {
 
-            /* ---- 2) SHALLOW Kopien --------------------------- */
+            // Shallow Kopien
             List<Rechteck> rectRefCopy = new ArrayList<>(cur.getRechtecke()); // O(1)
             List<Box> boxRefCopy = shallowCopyBoxes(cur); // O(#Boxen)
 
             Rechteck movedOrig = pool.get(idx); // Original-Ref
-            Rechteck moved = movedOrig; // wird IN-PLACE versetzt
+            Rechteck moved = movedOrig;
 
-            /* ---- 3) Rechteck manipulieren -------------------- */
             if (rng.nextBoolean()) { // Variante A: kleiner Shift
                 int dx = rng.nextInt(maxShift * 2 + 1) - maxShift;
                 int dy = rng.nextInt(maxShift * 2 + 1) - maxShift;
@@ -89,7 +86,7 @@ public class GeometricNachbarschaftTuned
                 dst.getRechtecke().add(moved);
             }
 
-            /* ---- 4) neue Instanz zusammenstecken ------------- */
+            // neue Instanz zusammenstecken
             ProblemInstanz cand = new ProblemInstanz(cur.getBoxLength(), rectRefCopy);
             cand.getBoxes().addAll(boxRefCopy); // kein platzieren()
             out.add(cand);
@@ -97,7 +94,7 @@ public class GeometricNachbarschaftTuned
         return out;
     }
 
-    /* ================= helper ================================ */
+    // Hilfsfunktionen
     private static List<Box> shallowCopyBoxes(ProblemInstanz cur) {
         List<Box> copy = new ArrayList<>(cur.getBoxes().size());
         for (Box b : cur.getBoxes()) {
@@ -141,7 +138,7 @@ public class GeometricNachbarschaftTuned
                     return true;
                 }
             }
-        return false; // not critical – bleiben in alter Pos.
+        return false;
     }
 
     private static int clamp(int v, int lo, int hi) {

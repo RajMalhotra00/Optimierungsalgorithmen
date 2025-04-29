@@ -17,7 +17,7 @@ import javafx.stage.Stage;
 
 public class MainGUI extends Application {
 
-    /* ────────── GUI-Elemente ────────── */
+    // GUI-Elemente
     private TextField tfNumRectangles, tfMinWidth, tfMaxWidth,
             tfMinHeight, tfMaxHeight, tfBoxLength;
     private Button btnGenerateRandomSolution, btnRunAlgorithm;
@@ -25,14 +25,11 @@ public class MainGUI extends Application {
     private Canvas canvas;
     private TextArea taLog;
 
-    /* Aktuelle Instanz */
     private ProblemInstanz currentInstance;
 
-    /* ─────────────────────────────────────────────────────────────── */
     @Override
     public void start(Stage primaryStage) {
 
-        /* ---------- Eingabemaske ---------- */
         GridPane controls = new GridPane();
         controls.setHgap(10);
         controls.setVgap(10);
@@ -47,7 +44,7 @@ public class MainGUI extends Application {
 
         btnGenerateRandomSolution = new Button("Zufalls-Instanz erzeugen");
         btnRunAlgorithm = new Button("Algorithmus anwenden");
-        btnRunAlgorithm.setDisable(true); // ← zunächst deaktiviert
+        btnRunAlgorithm.setDisable(true); // zunächst deaktiviert
 
         cbAlgorithm = new ComboBox<>();
         cbAlgorithm.getItems().addAll(
@@ -60,7 +57,7 @@ public class MainGUI extends Application {
                 "Greedy – Strategie B (Breite aufsteigend)");
         cbAlgorithm.getSelectionModel().selectFirst();
 
-        /* Layout */
+        // Layout
         controls.add(new Label("Anzahl Rechtecke:"), 0, 0);
         controls.add(tfNumRectangles, 1, 0);
         controls.add(new Label("Min. Breite:"), 0, 1);
@@ -78,7 +75,7 @@ public class MainGUI extends Application {
         controls.add(btnGenerateRandomSolution, 0, 5, 2, 1);
         controls.add(btnRunAlgorithm, 2, 5, 2, 1);
 
-        /* Canvas & Log */
+        // Canvas & Log
         canvas = new Canvas(1200, 800);
         ScrollPane sc = new ScrollPane(canvas);
         sc.setPannable(true);
@@ -92,7 +89,7 @@ public class MainGUI extends Application {
         root.setCenter(sc);
         root.setBottom(new VBox(5, new Label("Status:"), taLog));
 
-        /* Events */
+        // starte gewählten Algo
         btnGenerateRandomSolution.setOnAction(e -> generateRandomFeasibleSolution());
         btnRunAlgorithm.setOnAction(e -> runSelectedAlgorithm());
 
@@ -101,7 +98,7 @@ public class MainGUI extends Application {
         primaryStage.show();
     }
 
-    /* ────────── Instanz-Erzeugung ────────── */
+    // erzeuge Instamz
     private void generateRandomFeasibleSolution() {
         try {
             int n = Integer.parseInt(tfNumRectangles.getText());
@@ -115,7 +112,7 @@ public class MainGUI extends Application {
             currentInstance = gen.generateInstance(box, n, minW, maxW, minH, maxH);
             currentInstance.generateRandomFeasibleSolution(50);
 
-            btnRunAlgorithm.setDisable(false); // ← jetzt freischalten
+            btnRunAlgorithm.setDisable(false); // jetzt freischalten
             log("Neue Zufalls-Instanz: " + currentInstance.getBoxes().size() + " Boxen");
             drawInstance(currentInstance);
 
@@ -124,7 +121,6 @@ public class MainGUI extends Application {
         }
     }
 
-    /* ────────── Algorithmus starten ────────── */
     private void runSelectedAlgorithm() {
         if (currentInstance == null)
             return;
@@ -136,7 +132,7 @@ public class MainGUI extends Application {
         ProblemInstanz improved = null;
         long t0 = System.nanoTime();
 
-        /* ---------- Simulated-Annealing ---------- */
+        // Simulated-Annealing
         if (sel.startsWith("SA-Geo-Tuned")) {
             var nb = new GeometricNachbarschaftTuned();
             nb.setMaxNeighbors(14);
@@ -148,7 +144,7 @@ public class MainGUI extends Application {
             var sa = new SimulatedAnnealingSuche<>(currentInstance, nb);
             improved = sa.run(currentInstance);
 
-            /* ---------------- Lokale Suche ---------------- */
+            // Lokale Suche
         } else if (sel.startsWith("Lokale Suche")) {
 
             if (sel.contains("Geometriebasiert"))
@@ -161,7 +157,7 @@ public class MainGUI extends Application {
                 improved = new LokaleSuche<>(currentInstance,
                         new OverlapTolerantNachbarschaft(1.0)).run(currentInstance);
 
-            /* ---------------- Greedy ------------------- */
+            // Greedy
         } else if (sel.startsWith("Greedy")) {
             AuswahlStrategie<Rechteck> strat = sel.contains("Strategie A")
                     ? new GreedyStrategyAreaDesc()
@@ -179,7 +175,6 @@ public class MainGUI extends Application {
         }
     }
 
-    /* ────────── Zeichnen & Hilfen ────────── */
     private void drawInstance(ProblemInstanz inst) {
         GraphicsContext g = canvas.getGraphicsContext2D();
         g.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());

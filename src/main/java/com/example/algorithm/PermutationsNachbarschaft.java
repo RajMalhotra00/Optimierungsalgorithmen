@@ -6,7 +6,7 @@ import com.example.model.Rechteck;
 
 import java.util.*;
 
-/** Permutations-Nachbarschaft (Basis + Tuned) */
+// Permutations-Nachbarschaft (Basis + Tuned)
 public class PermutationsNachbarschaft implements Nachbarschaft<ProblemInstanz> {
 
     private int maxNeighbors = 20;
@@ -42,6 +42,7 @@ public class PermutationsNachbarschaft implements Nachbarschaft<ProblemInstanz> 
             idxPool.add(i);
         Collections.shuffle(idxPool, rng);
 
+        // nicht mehr als maxNeighb und nicht mehr als alle möglichen Paare
         int k = Math.min(maxNeighbors, n * (n - 1) / 2);
         List<ProblemInstanz> out = new ArrayList<>(k);
 
@@ -65,7 +66,7 @@ public class PermutationsNachbarschaft implements Nachbarschaft<ProblemInstanz> 
 
             ProblemInstanz cand = new ProblemInstanz(cur.getBoxLength(), perm);
             cand.getBoxes().addAll(cur.getBoxes()); // Box-Liste übernehmen
-            cand.fastRepack(i, j, perm); // *** nur zwei Rechtecke neu packen
+            cand.fastRepack(i, j, perm); // nur zwei Rechtecke neu packen
             out.add(cand);
         }
         return out;

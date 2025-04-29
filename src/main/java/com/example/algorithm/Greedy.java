@@ -19,18 +19,17 @@ public class Greedy implements Algorithmus<ProblemInstanz> {
 
     @Override
     public ProblemInstanz run(ProblemInstanz initialSolution) {
-        // Bestimme die Reihenfolge der Rechtecke anhand der Strategie.
+        // Bestimme Reihenfolge der Rechtecke anhand der Strategie
         List<Rechteck> ordered = new ArrayList<>(strategy.determineOrder(initialSolution.getRechtecke()));
-        // Ersetze die ursprüngliche Liste mit der sortierten Reihenfolge.
+        // Ersetze ursprüngliche Liste mit der sortierten Reihenfolge
         initialSolution.getRechtecke().clear();
         initialSolution.getRechtecke().addAll(ordered);
         // Setze alle Rechteckpositionen zurück, damit die Platzierung von einem
-        // unplatzierten Zustand startet.
+        // unplatzierten Zustand startet
         for (Rechteck r : initialSolution.getRechtecke()) {
             r.setPosition(0, 0);
         }
-        // Starte den Platzierungsalgorithmus, der nun die sortierte Reihenfolge
-        // berücksichtigt.
+        // mit sortierter Reihenfolge
         initialSolution.platzieren();
         return initialSolution;
     }
